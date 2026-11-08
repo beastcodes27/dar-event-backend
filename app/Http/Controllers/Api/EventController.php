@@ -156,19 +156,17 @@ class EventController extends Controller
 
     public function feed(Request $request): AnonymousResourceCollection
     {
+        $request->validate(['per_page' => ['sometimes', 'integer', 'min:1', 'max:50']]);
         $auth = $request->user();
-        $followingIds = $auth->following()->pluck('users.id');
 
         $events = Event::query()
             ->with('host')
-            ->where(function (Builder $query) use ($auth, $followingIds) {
-                $query->where('user_id', $auth->getKey())
-                    ->orWhere(function (Builder $query) use ($followingIds) {
-                        $query->where('is_public', true)
-                            ->whereIn('user_id', $followingIds);
-                    });
+            ->where(function (Builder $query) use ($auth): void {
+                $query->where('is_public', true)->orWhere('user_id', $auth->getKey());
             })
-            ->latest('starts_at')
+            ->withExists(['likes as is_liked' => fn (Builder $query) => $query->where('users.id', $auth->getKey())])
+            ->withExists(['savedBy as is_saved' => fn (Builder $query) => $query->where('users.id', $auth->getKey())])
+            ->latest('created_at')->orderByDesc('id')
             ->paginate($request->integer('per_page', 15));
 
         return EventResource::collection($events);
@@ -180,7 +178,7 @@ class EventController extends Controller
         $slug = $base;
         $count = 2;
 
-        while (Event::query()
+        while (Event::withoutGlobalScope('active')
             ->where('slug', $slug)
             ->when($ignoreId, fn (Builder $query) => $query->whereKeyNot($ignoreId))
             ->exists()) {

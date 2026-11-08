@@ -24,7 +24,7 @@ class CommentController extends Controller
             ->latest()
             ->paginate($request->integer('per_page', 20));
 
-        return CommentResource::collection($comments);
+        return CommentResource::collection($comments)->additional(['meta' => ['comments_count' => (int) $event->comments_count]]);
     }
 
     public function store(StoreCommentRequest $request, Event $event): JsonResponse

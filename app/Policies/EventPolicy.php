@@ -7,6 +7,11 @@ use App\Models\User;
 
 class EventPolicy
 {
+    public function create(User $user): bool
+    {
+        return $user->verified;
+    }
+
     public function view(?User $user, Event $event): bool
     {
         return $event->is_public || $event->isHostedBy($user);
@@ -14,7 +19,7 @@ class EventPolicy
 
     public function update(User $user, Event $event): bool
     {
-        return $event->isHostedBy($user);
+        return $user->verified && $event->isHostedBy($user);
     }
 
     public function delete(User $user, Event $event): bool

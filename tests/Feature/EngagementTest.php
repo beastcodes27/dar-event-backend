@@ -37,6 +37,20 @@ class EngagementTest extends TestCase
             ->assertJsonPath('likes_count', 0);
     }
 
+    public function test_explicit_photo_likes_are_idempotent_and_do_not_repeat_notifications(): void
+    {
+        Notification::fake();
+        $event = Event::factory()->create();
+        Sanctum::actingAs(User::factory()->create());
+        foreach ([1, 2, 3] as $attempt) {
+            $this->postJson('/api/events/'.$event->id.'/like', ['liked' => true])->assertOk()
+                ->assertJsonPath('liked', true)->assertJsonPath('likes_count', 1);
+        }
+        Notification::assertSentToTimes($event->host, AppNotification::class, 1);
+        $this->postJson('/api/events/'.$event->id.'/like', ['liked' => 'invalid'])->assertUnprocessable();
+        $this->postJson('/api/events/'.$event->id.'/like')->assertJsonPath('liked', false)->assertJsonPath('likes_count', 0);
+    }
+
     public function test_a_user_can_save_and_unsave_an_event(): void
     {
         $user = User::factory()->create();

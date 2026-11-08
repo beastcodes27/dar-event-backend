@@ -65,6 +65,8 @@
             "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
             "@php artisan migrate --graceful --ansi"
         ],
+        "serve:uploads": "cd public && php -d upload_max_filesize=100M -d post_max_size=110M -S 0.0.0.0:8000 ../vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php",
+        "videos": "@php artisan queue:work video --queue=videos --timeout=3300 --tries=1",
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
         ]

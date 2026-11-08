@@ -54,6 +54,8 @@ class SearchController extends Controller
 
         if (in_array($type, ['all', 'users'], true)) {
             $users = User::query()
+                ->where('discoverable', true)
+                ->when($auth, fn (Builder $query) => $query->whereNotIn('id', $auth->blockedAccountIds()))
                 ->withCount(['followers', 'following', 'events'])
                 ->where(function (Builder $query) use ($term) {
                     $query->where('name', 'like', $term)

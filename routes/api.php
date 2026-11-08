@@ -5,13 +5,18 @@ use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\CommentLikeController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\EventLikeController;
+use App\Http\Controllers\Api\EventShareController;
+use App\Http\Controllers\Api\EventVideoController;
 use App\Http\Controllers\Api\FollowController;
+use App\Http\Controllers\Api\LegalController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\PresenceController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RecentSearchController;
 use App\Http\Controllers\Api\SavedEventController;
 use App\Http\Controllers\Api\SearchController;
+use App\Http\Controllers\Api\SettingsController;
 use App\Http\Controllers\Api\StoryController;
 use App\Http\Controllers\Api\StoryHighlightController;
 use App\Http\Controllers\Api\TicketController;
@@ -26,9 +31,13 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('auth')->group(function () {
+    Route::post('availability', [AuthController::class, 'availability'])->middleware('throttle:60,1,registration-availability');
     Route::post('register', [AuthController::class, 'register']);
     Route::post('login', [AuthController::class, 'login']);
 });
+
+Route::get('legal', [LegalController::class, 'index']);
+Route::get('legal/{document}', [LegalController::class, 'show'])->whereIn('document', ['terms', 'privacy']);
 
 Route::get('categories', fn () => response()->json([
     'data' => [
@@ -49,6 +58,7 @@ Route::get('categories', fn () => response()->json([
 Route::get('events', [EventController::class, 'index']);
 Route::get('events/{event}', [EventController::class, 'show']);
 Route::get('events/{event}/comments', [CommentController::class, 'index']);
+Route::get('events/{event}/video/{streamId}/{asset}', [EventVideoController::class, 'stream'])->whereUuid('streamId')->where('asset', '.*');
 
 Route::get('search', SearchController::class);
 
@@ -68,8 +78,25 @@ Route::get('stories', [StoryController::class, 'index']);
 */
 
 Route::middleware('auth:sanctum')->group(function () {
+    Route::patch('presence', [PresenceController::class, 'update'])->middleware('throttle:30,1');
+    Route::patch('settings/privacy', [SettingsController::class, 'privacy']);
+    Route::patch('settings/theme', [SettingsController::class, 'theme']);
+    Route::get('settings/activity', [SettingsController::class, 'activity']);
+    Route::delete('settings/sessions', [SettingsController::class, 'revokeSessions']);
+    Route::get('settings/archived-posts', [SettingsController::class, 'archived']);
+    Route::patch('settings/posts/{eventId}/archive', [SettingsController::class, 'archive'])->whereNumber('eventId');
+    Route::get('settings/blocked-accounts', [SettingsController::class, 'blocked']);
+    Route::post('settings/blocked-accounts/{user:username}', [SettingsController::class, 'block']);
+    Route::delete('settings/blocked-accounts/{user:username}', [SettingsController::class, 'unblock']);
+    Route::get('settings/support', [SettingsController::class, 'support']);
+    Route::post('settings/support', [SettingsController::class, 'contact'])->middleware('throttle:10,1');
+    Route::get('admin/support', [SettingsController::class, 'adminSupport']);
+    Route::patch('admin/support/{supportId}', [SettingsController::class, 'reply'])->whereNumber('supportId');
     Route::get('messages', [MessageController::class, 'index']);
     Route::get('messages/unread-count', [MessageController::class, 'unreadCount']);
+    Route::patch('messages/{message}', [MessageController::class, 'update'])->middleware('throttle:60,1');
+    Route::delete('messages/{message}', [MessageController::class, 'destroy'])->middleware('throttle:60,1');
+    Route::patch('message-requests/{messageRequest}', [MessageController::class, 'resolveRequest']);
     Route::get('users/{user:username}/messages', [MessageController::class, 'show']);
     Route::post('users/{user:username}/messages', [MessageController::class, 'store'])->middleware('throttle:60,1');
 
@@ -89,8 +116,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('events', [EventController::class, 'store']);
     Route::match(['put', 'patch'], 'events/{event}', [EventController::class, 'update']);
     Route::delete('events/{event}', [EventController::class, 'destroy']);
+    Route::post('events/{event}/video', [EventVideoController::class, 'store'])->middleware('throttle:5,1,event-video');
+    Route::delete('events/{event}/video', [EventVideoController::class, 'destroy']);
 
     Route::post('events/{event}/like', [EventLikeController::class, 'toggle']);
+    Route::post('events/{event}/share', [EventShareController::class, 'store'])->middleware('throttle:60,1');
     Route::post('events/{event}/save', [SavedEventController::class, 'toggle']);
     Route::get('saved-events', [SavedEventController::class, 'index']);
 

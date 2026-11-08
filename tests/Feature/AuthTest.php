@@ -22,6 +22,8 @@ class AuthTest extends TestCase
             'category' => 'Event Organizer',
             'bio' => 'Hello DarEvent',
             'terms' => true,
+            'terms_version' => config('legal.terms.version'),
+            'privacy_policy_version' => config('legal.privacy.version'),
             'device_name' => 'pixel',
         ]);
 

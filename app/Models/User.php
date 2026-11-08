@@ -5,11 +5,14 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -26,6 +29,11 @@ use Laravel\Sanctum\HasApiTokens;
     'account_type',
     'verified',
     'verified_at',
+    'discoverable',
+    'allow_messages',
+    'theme_preference',
+    'online_status_visibility',
+    'message_policy',
 ])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
@@ -42,9 +50,13 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'terms_accepted_at' => 'datetime',
             'verified_at' => 'datetime',
             'username_changed_at' => 'datetime',
             'verified' => 'boolean',
+            'discoverable' => 'boolean',
+            'allow_messages' => 'boolean',
+            'is_admin' => 'boolean',
             'password' => 'hashed',
         ];
     }
@@ -124,5 +136,54 @@ class User extends Authenticatable
             ->take(2)
             ->map(fn (string $part) => Str::upper(Str::substr($part, 0, 1)))
             ->implode('');
+    }
+
+    public function blockedAccountIds(): Collection
+    {
+        return DB::table('account_blocks')->where('user_id', $this->id)->pluck('blocked_user_id')
+            ->merge(DB::table('account_blocks')->where('blocked_user_id', $this->id)->pluck('user_id'))->unique();
+    }
+
+    public function hasBlockWith(User $user): bool
+    {
+        return $this->blockedAccountIds()->contains($user->id);
+    }
+
+    public function onlineStatusFor(?User $viewer): ?bool
+    {
+        if (! $viewer || (! $viewer->is($this) && (
+            $this->online_status_visibility === 'nobody'
+            || $this->hasBlockWith($viewer)
+            || ($this->online_status_visibility === 'following' && ! $this->isFollowing($viewer))
+        ))) {
+            return null;
+        }
+
+        return $this->tokens()->where('last_active_at', '>', now()->subSeconds(60))
+            ->where(function (Builder $query): void {
+                $query->whereNull('expires_at')->orWhere('expires_at', '>', now());
+            })->when(config('sanctum.expiration'), fn (Builder $query) => $query->where('created_at', '>', now()->subMinutes((int) config('sanctum.expiration'))))
+            ->exists();
+    }
+
+    public function messagePermissionFor(User $sender): string
+    {
+        if ($sender->is($this) || ! $this->allow_messages || $this->hasBlockWith($sender)) {
+            return 'unavailable';
+        }
+
+        $request = MessageRequest::where('sender_id', $sender->id)->where('recipient_id', $this->id)->first();
+        if ($request && in_array($request->status, ['pending', 'declined'], true)) {
+            return 'request_'.$request->status;
+        }
+        if ($this->message_policy === 'followers' && ! $sender->isFollowing($this)) {
+            return 'followers_only';
+        }
+        if ($this->message_policy === 'requests' && $request?->status !== 'accepted'
+            && ! $this->sentMessages()->where('recipient_id', $sender->id)->exists()) {
+            return 'request_required';
+        }
+
+        return 'allowed';
     }
 }

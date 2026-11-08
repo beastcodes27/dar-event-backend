@@ -16,6 +16,7 @@ class FollowController extends Controller
         $auth = $request->user();
 
         abort_if($auth->is($user), 422, 'You cannot follow yourself.');
+        abort_if($auth->hasBlockWith($user), 403, 'This account is unavailable.');
 
         $following = $auth->following()->where('users.id', $user->getKey())->exists();
 

@@ -13,13 +13,15 @@ class EventLikeController extends Controller
 {
     public function toggle(Request $request, Event $event): JsonResponse
     {
+        $request->validate(['liked' => ['sometimes', 'boolean']]);
         $auth = $request->user();
 
         $liked = $event->likes()->where('users.id', $auth->getKey())->exists();
+        $desired = $request->has('liked') ? $request->boolean('liked') : ! $liked;
 
-        if ($liked) {
+        if ($liked && ! $desired) {
             $event->likes()->detach($auth->getKey());
-        } else {
+        } elseif (! $liked && $desired) {
             $event->likes()->attach($auth->getKey());
 
             if (! $event->isHostedBy($auth)) {
@@ -43,8 +45,8 @@ class EventLikeController extends Controller
         $event->update(['likes_count' => $event->likes()->count()]);
 
         return response()->json([
-            'message' => $liked ? 'Event unliked.' : 'Event liked.',
-            'liked' => ! $liked,
+            'message' => $desired ? 'Event liked.' : 'Event unliked.',
+            'liked' => $desired,
             'likes_count' => $event->likes_count,
         ]);
     }

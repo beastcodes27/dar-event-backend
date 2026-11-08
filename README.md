@@ -1,8 +1,15 @@
 # DarEvent API
 
-Laravel backend for the **DarEvent** Expo / React Native app. The original
-`dar-event-backend` repository was empty, so this API was built from the app's
-screens and data models.
+Laravel backend for the **DarEvent** Expo / React Native app.
+
+Backend repository: https://github.com/beastcodes27/dar-event-backend
+
+Mobile app repository: https://github.com/beastcodes27/DarEvent
+
+The mobile repository includes this repository as the `backend/` Git submodule.
+For a fresh mobile checkout, run `git submodule update --init --recursive`.
+Backend changes are committed and pushed from `backend/`; then commit the updated
+submodule reference in the mobile repository.
 
 ## Features
 
@@ -21,14 +28,15 @@ screens and data models.
 
 ## Requirements
 
-- PHP 8.3+
+- PHP 8.4+
 - Composer
 - SQLite (default) or MySQL/PostgreSQL
 
 ## Setup
 
 ```bash
-cd backend
+git clone https://github.com/beastcodes27/dar-event-backend.git
+cd dar-event-backend
 composer install
 cp .env.example .env
 php artisan key:generate
@@ -48,7 +56,7 @@ For the mobile app:
 | Android emulator | `http://10.0.2.2:8000/api` |
 | Physical device | `http://<your-computer-LAN-IP>:8000/api` |
 
-When testing on a device, set `APP_URL` in `backend/.env` to the same host
+When testing on a device, set `APP_URL` in the backend `.env` to the same host
 (for example `http://192.168.1.20:8000`) so event/avatar image URLs are
 reachable, then run `php artisan config:clear`.
 
@@ -153,7 +161,7 @@ it matters: `fullName` → `name`, `confirmPassword` → `password_confirmation`
 | `PATCH` | `/profile` | Update name, username, email, bio, category, gender, country |
 | `POST` | `/profile/avatar` | Upload avatar (`avatar`, multipart) |
 | `DELETE` | `/profile/avatar` | Remove avatar |
-| `GET` | `/feed` | Events from followed hosts + own |
+| `GET` | `/feed` | Discover public events + own private events (blocked accounts excluded) |
 | `GET` | `/my-events` | Own events, including private |
 | `POST` | `/events` | Create event (`image` file or `image_url`) |
 | `PUT/PATCH` | `/events/{event}` | Update own event |

@@ -8,16 +8,45 @@ use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\UpdatePasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Rules\AvailableRegistrationIdentifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function availability(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'field' => ['required', 'in:username,email'],
+            'value' => ['required', 'string', 'max:255'],
+        ]);
+        $field = $data['field'];
+        $value = Str::lower(trim($data['value']));
+        validator([$field => $value], [$field => RegisterRequest::identifierRules($field)])->validate();
+
+        return response()->json(['data' => [
+            'field' => $field,
+            'value' => $value,
+            'available' => ! AvailableRegistrationIdentifier::isTaken($field, $value),
+        ]])->header('Cache-Control', 'no-store');
+    }
+
     public function register(RegisterRequest $request): JsonResponse
     {
-        $user = User::create($request->safe()->except(['terms', 'device_name']));
+        $user = DB::transaction(function () use ($request): User {
+            $user = User::create($request->safe()->except(['terms', 'device_name', 'terms_version', 'privacy_policy_version']));
+            $user->forceFill([
+                'terms_accepted_at' => now(),
+                'terms_version' => $request->validated('terms_version'),
+                'privacy_policy_version' => $request->validated('privacy_policy_version'),
+            ])->save();
+
+            return $user;
+        });
 
         $token = $user->createToken($request->input('device_name', 'mobile'))->plainTextToken;
 
@@ -33,11 +62,11 @@ class AuthController extends Controller
 
     public function login(LoginRequest $request): JsonResponse
     {
-        $identifier = $request->input('login', $request->input('email'));
+        $identifier = Str::lower(trim($request->input('login', $request->input('email'))));
 
         $user = User::query()
-            ->where('email', $identifier)
-            ->orWhere('username', $identifier)
+            ->whereRaw('LOWER(email) = ?', [$identifier])
+            ->orWhereRaw('LOWER(username) = ?', [$identifier])
             ->first();
 
         if (! $user || ! Hash::check($request->input('password'), $user->password)) {

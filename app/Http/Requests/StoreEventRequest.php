@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\Event;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,7 +11,12 @@ class StoreEventRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return (bool) $this->user();
+        return $this->user()?->can('create', Event::class) ?? false;
+    }
+
+    protected function failedAuthorization(): void
+    {
+        throw new AuthorizationException('Only verified accounts can publish events. Apply for verification from your profile.');
     }
 
     /**

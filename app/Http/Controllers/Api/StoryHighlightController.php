@@ -20,6 +20,8 @@ class StoryHighlightController extends Controller
             ? User::where('username', $request->input('username'))->firstOrFail()
             : $request->user();
 
+        abort_if($request->user('sanctum')?->hasBlockWith($user), 404);
+
         $highlights = $user->storyHighlights()
             ->with(['stories' => fn ($query) => $query->active()->latest()])
             ->withCount('stories')

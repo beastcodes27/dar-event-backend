@@ -31,12 +31,16 @@ class EventResource extends JsonResource
             'price' => (float) $this->price,
             'currency' => $this->currency,
             'image' => Media::url($this->image_path),
-            'video_url' => $this->video_url,
+            'video_url' => $this->video_stream_path ? url('/api/events/'.$this->id.'/video/'.basename($this->video_stream_path).'/master.m3u8') : $this->video_url,
+            'video_saver_url' => $this->video_stream_path ? url('/api/events/'.$this->id.'/video/'.basename($this->video_stream_path).'/v0/index.m3u8') : null,
+            'video_status' => $this->video_status,
+            'video_variants' => $this->video_variants,
             'has_video' => $this->has_video,
             'is_public' => $this->is_public,
             'likes_count' => (int) $this->likes_count,
             'comments_count' => (int) $this->comments_count,
             'saves_count' => (int) $this->saves_count,
+            'shares_count' => (int) $this->shares_count,
             'host' => new UserResource($this->whenLoaded('host')),
             'avatar' => $this->host?->initials(),
             'liked' => $this->when($auth !== null, fn () => isset($this->is_liked)
@@ -46,6 +50,7 @@ class EventResource extends JsonResource
                 ? (bool) $this->is_saved
                 : $this->savedBy()->whereKey($auth->getKey())->exists()),
             'is_owner' => $auth ? $this->isHostedBy($auth) : false,
+            'archived_at' => $this->when($auth && $this->isHostedBy($auth), $this->archived_at?->toIso8601String()),
             'comments_list' => CommentResource::collection($this->whenLoaded('rootComments')),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

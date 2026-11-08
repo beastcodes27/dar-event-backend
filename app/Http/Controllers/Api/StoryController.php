@@ -21,6 +21,7 @@ class StoryController extends Controller
             : null;
 
         $stories = Story::query()
+            ->when($request->user('sanctum'), fn ($query) => $query->whereNotIn('user_id', $request->user('sanctum')->blockedAccountIds()))
             ->with('user')
             ->active()
             ->when($user, fn ($query) => $query->where('user_id', $user->getKey()))

@@ -74,9 +74,9 @@ class EventTest extends TestCase
         $this->getJson('/api/events/'.$event->slug)->assertNotFound();
     }
 
-    public function test_a_user_can_create_update_and_delete_an_event(): void
+    public function test_a_verified_user_can_create_update_and_delete_an_event(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->verified()->create();
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/events', [
@@ -107,13 +107,47 @@ class EventTest extends TestCase
     public function test_only_the_host_can_update_or_delete_an_event(): void
     {
         $event = Event::factory()->create();
-        $other = User::factory()->create();
+        $other = User::factory()->verified()->create();
         Sanctum::actingAs($other);
 
         $this->patchJson('/api/events/'.$event->slug, ['title' => 'Hijacked'])
             ->assertForbidden();
 
         $this->deleteJson('/api/events/'.$event->slug)->assertForbidden();
+    }
+
+    public function test_unverified_accounts_cannot_publish_or_claim_verification_in_the_payload(): void
+    {
+        $user = User::factory()->create();
+        $payload = ['title' => 'Unverified event', 'category' => 'music', 'location' => 'Dar', 'starts_at' => now()->addDay()->toIso8601String(), 'verified' => true];
+        $this->postJson('/api/events', $payload)->assertUnauthorized();
+        Sanctum::actingAs($user);
+        $this->postJson('/api/events', $payload)->assertForbidden()
+            ->assertJsonPath('message', 'Only verified accounts can publish events. Apply for verification from your profile.');
+        $this->postJson('/api/events', $payload + ['is_public' => false])->assertForbidden();
+        $this->patchJson('/api/profile', ['verified' => true, 'verified_at' => now()->toIso8601String()])->assertOk();
+        $this->assertFalse($user->fresh()->verified);
+        $this->postJson('/api/events', $payload)->assertForbidden();
+        $this->assertDatabaseCount('events', 0);
+    }
+
+    public function test_losing_verification_blocks_edits_video_uploads_and_restores_but_allows_removal(): void
+    {
+        $user = User::factory()->verified()->create();
+        $event = Event::factory()->private()->create(['user_id' => $user->id]);
+        $user->update(['verified' => false]);
+        Sanctum::actingAs($user);
+        $this->patchJson('/api/events/'.$event->id, ['is_public' => true])->assertForbidden();
+        $this->patchJson('/api/events/'.$event->id, ['title' => 'Changed'])->assertForbidden();
+        $this->postJson('/api/events/'.$event->id.'/video', [])->assertForbidden();
+        $this->deleteJson('/api/events/'.$event->id.'/video')->assertOk();
+        $this->patchJson('/api/settings/posts/'.$event->id.'/archive', ['archived' => true])->assertOk();
+        $this->patchJson('/api/settings/posts/'.$event->id.'/archive', ['archived' => false])->assertForbidden();
+        $this->assertNotNull($event->fresh()->archived_at);
+        $user->update(['verified' => true]);
+        $this->patchJson('/api/settings/posts/'.$event->id.'/archive', ['archived' => false])->assertOk();
+        $user->update(['verified' => false]);
+        $this->deleteJson('/api/events/'.$event->id)->assertOk();
     }
 
     public function test_my_events_and_feed_return_the_expected_events(): void
@@ -135,6 +169,37 @@ class EventTest extends TestCase
 
         $this->getJson('/api/feed')
             ->assertOk()
-            ->assertJsonCount(2, 'data');
+            ->assertJsonCount(3, 'data');
+    }
+
+    public function test_discovery_feed_includes_unfollowed_publishers_with_stable_pagination_and_viewer_flags(): void
+    {
+        $viewer = User::factory()->create();
+        $older = Event::factory()->create(['created_at' => now()->subHour()]);
+        $newer = Event::factory()->create(['created_at' => now()]);
+        $viewer->likedEvents()->attach($newer->id);
+        $viewer->savedEvents()->attach($newer->id);
+        Sanctum::actingAs($viewer);
+        $this->assertSame(0, $viewer->following()->count());
+        $this->getJson('/api/feed?per_page=1')->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $newer->id)->assertJsonPath('data.0.liked', true)->assertJsonPath('data.0.saved', true);
+        $this->getJson('/api/feed?per_page=1&page=2')->assertOk()->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.id', $older->id)->assertJsonPath('links.next', null);
+        $this->getJson('/api/feed?per_page=51')->assertUnprocessable();
+    }
+
+    public function test_discovery_keeps_private_archived_and_blocked_events_out_of_other_users_feeds(): void
+    {
+        $viewer = User::factory()->create();
+        $public = Event::factory()->create();
+        $own = Event::factory()->private()->create(['user_id' => $viewer->id]);
+        Event::factory()->private()->create();
+        $archived = Event::factory()->create();
+        $archived->forceFill(['archived_at' => now()])->save();
+        $blocked = Event::factory()->create();
+        Sanctum::actingAs($viewer);
+        $this->postJson('/api/settings/blocked-accounts/'.$blocked->host->username)->assertOk();
+        $result = $this->getJson('/api/feed')->assertOk()->assertJsonCount(2, 'data');
+        $this->assertEqualsCanonicalizing([$public->id, $own->id], collect($result->json('data'))->pluck('id')->all());
     }
 }
