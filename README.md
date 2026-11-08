@@ -6,10 +6,9 @@ Backend repository: https://github.com/beastcodes27/dar-event-backend
 
 Mobile app repository: https://github.com/beastcodes27/DarEvent
 
-The mobile repository includes this repository as the `backend/` Git submodule.
-For a fresh mobile checkout, run `git submodule update --init --recursive`.
-Backend changes are committed and pushed from `backend/`; then commit the updated
-submodule reference in the mobile repository.
+The backend and mobile app are independent repositories. Clone this repository
+separately from the mobile app and commit backend changes here. Set the mobile
+app’s `EXPO_PUBLIC_API_URL` to the running API’s `/api` URL.
 
 ## Features
 
