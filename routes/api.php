@@ -149,6 +149,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('story-highlights/{storyHighlight}', [StoryHighlightController::class, 'destroy']);
 
     Route::post('stories', [StoryController::class, 'store']);
+    Route::post('stories/{story}/view', [StoryController::class, 'view']);
+    Route::post('stories/{story}/like', [StoryController::class, 'like']);
+    Route::get('stories/{story}/views', [StoryController::class, 'viewers']);
     Route::delete('stories/{story}', [StoryController::class, 'destroy']);
 
     Route::get('tickets', [TicketController::class, 'index']);

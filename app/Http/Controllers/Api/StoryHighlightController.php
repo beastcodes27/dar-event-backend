@@ -23,7 +23,7 @@ class StoryHighlightController extends Controller
         abort_if($request->user('sanctum')?->hasBlockWith($user), 404);
 
         $highlights = $user->storyHighlights()
-            ->with(['stories' => fn ($query) => $query->active()->latest()])
+            ->with(['stories' => fn ($query) => $query->active()->withInteractions($request->user('sanctum'))->latest()])
             ->withCount('stories')
             ->orderBy('position')
             ->get();

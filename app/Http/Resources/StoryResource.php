@@ -17,6 +17,10 @@ class StoryResource extends JsonResource
     {
         return [
             'id' => $this->id,
+            'liked' => (bool) ($this->is_liked ?? false),
+            'viewed' => (bool) ($this->is_viewed ?? false),
+            'likes_count' => (int) ($this->likes_count ?? 0),
+            'views_count' => $this->when($request->user('sanctum')?->id === $this->user_id, (int) ($this->viewers_count ?? 0)),
             'media' => Media::url($this->media_path),
             'caption' => $this->caption,
             'is_live' => $this->is_live,
