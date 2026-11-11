@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BanAppeal;
 use App\Models\Event;
 use App\Models\PublisherPayment;
 use App\Models\PublisherPlan;
@@ -26,6 +27,7 @@ class ManagementController extends Controller
         $section = $request->route('section');
         $q = mb_substr(trim((string) $request->query('q')), 0, 100);
         $query = match ($section) {
+            'appeals' => BanAppeal::with('user'),
             'users' => User::query()->when($q, fn ($query) => $query->where(fn ($query) => $query->where('username', 'like', '%'.$q.'%')->orWhere('email', 'like', '%'.$q.'%')->orWhere('name', 'like', '%'.$q.'%'))),
             'events' => Event::withoutGlobalScopes()->with('host')->when($q, fn ($query) => $query->where('title', 'like', '%'.$q.'%')),
             'stories' => Story::with('user')->withCount('viewers', 'likes'),
