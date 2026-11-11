@@ -45,7 +45,8 @@ class SettingsController extends Controller
     {
         $data = $request->validate(['archived' => ['required', 'boolean']]);
         $event = Event::withoutGlobalScope('active')->where('user_id', $request->user()->id)->findOrFail($eventId);
-        abort_if(! $data['archived'] && ! $request->user()->verified, 403, 'Only verified accounts can restore published events.');
+        abort_if(! $data['archived'] && $event->moderated_at, 403, 'Only an administrator can restore this event.');
+        abort_if(! $data['archived'] && ! $request->user()->canPublishEvents(), 403, 'A verified account and active publisher subscription are required to restore events.');
         $event->archived_at = $data['archived'] ? now() : null;
         $event->save();
 
