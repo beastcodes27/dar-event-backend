@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\StoryHighlightController;
 use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VerificationController;
+use App\Http\Controllers\BillingController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -159,3 +160,5 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('tickets/{ticket}', [TicketController::class, 'show']);
     Route::post('tickets/{ticket}/cancel', [TicketController::class, 'cancel']);
 });
+
+Route::post('billing/sonicpesa/webhook', [BillingController::class, 'webhook'])->middleware('throttle:120,1');
