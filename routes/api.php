@@ -22,7 +22,9 @@ use App\Http\Controllers\Api\StoryHighlightController;
 use App\Http\Controllers\Api\TicketController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\VerificationController;
+use App\Http\Controllers\BanAppealController;
 use App\Http\Controllers\BillingController;
+use App\Http\Middleware\EnsureAccountActive;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -34,6 +36,7 @@ use Illuminate\Support\Facades\Route;
 Route::prefix('auth')->group(function () {
     Route::post('availability', [AuthController::class, 'availability'])->middleware('throttle:60,1,registration-availability');
     Route::post('register', [AuthController::class, 'register']);
+    Route::post('ban-review', [BanAppealController::class, 'store'])->middleware('throttle:5,1');
     Route::post('login', [AuthController::class, 'login']);
 });
 
@@ -78,7 +81,7 @@ Route::get('stories', [StoryController::class, 'index']);
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', EnsureAccountActive::class])->group(function () {
     Route::patch('presence', [PresenceController::class, 'update'])->middleware('throttle:30,1');
     Route::patch('settings/privacy', [SettingsController::class, 'privacy']);
     Route::patch('settings/theme', [SettingsController::class, 'theme']);

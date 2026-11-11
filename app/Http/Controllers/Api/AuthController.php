@@ -9,6 +9,7 @@ use App\Http\Requests\UpdatePasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Rules\AvailableRegistrationIdentifier;
+use App\Support\AccountBans;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -75,7 +76,18 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken($request->input('device_name', 'mobile'))->plainTextToken;
+        $result = DB::transaction(function () use ($user, $request): array {
+            $locked = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            if ($locked->isBanned()) {
+                return ['message' => $locked->ban_status === 'permanently_banned' ? 'Your account is permanently banned.' : 'Your account is banned. You can request a review.', 'code' => 'account_banned', 'ban' => app(AccountBans::class)->details($locked)];
+            }
+
+            return ['token' => $locked->createToken($request->input('device_name', 'mobile'))->plainTextToken];
+        });
+        if (isset($result['ban'])) {
+            return response()->json($result, 403)->header('Cache-Control', 'no-store');
+        }
+        $token = $result['token'];
 
         return response()->json([
             'message' => 'Logged in successfully.',
