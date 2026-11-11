@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ManagementController;
+use App\Http\Controllers\BanAppealController;
 use App\Http\Controllers\BillingController;
 use App\Http\Middleware\EnsureAdmin;
 use Illuminate\Support\Facades\Route;
@@ -12,6 +13,8 @@ Route::get('/admin/login', [AuthController::class, 'create'])->name('admin.login
 Route::post('/admin/login', [AuthController::class, 'store'])->middleware('throttle:5,1')->name('admin.authenticate');
 Route::get('/account/login', [AuthController::class, 'create'])->name('account.login');
 Route::post('/account/login', [AuthController::class, 'store'])->middleware('throttle:5,1')->name('account.authenticate');
+Route::get('/account/banned', [BanAppealController::class, 'show'])->name('account.banned');
+Route::post('/account/ban-review', [BanAppealController::class, 'store'])->middleware('throttle:5,1')->name('account.ban-review');
 Route::middleware('auth')->group(function (): void {
     Route::post('/admin/logout', [AuthController::class, 'destroy'])->name('admin.logout');
     Route::post('/account/logout', [AuthController::class, 'destroy'])->name('account.logout');
@@ -21,9 +24,11 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/subscriptions/payments/{publisherPayment}/check', [BillingController::class, 'check'])->middleware('throttle:20,1')->name('billing.check');
     Route::prefix('admin')->name('admin.')->middleware(EnsureAdmin::class)->group(function (): void {
         Route::get('/', DashboardController::class)->name('dashboard');
-        foreach (['users', 'events', 'stories', 'verification', 'support', 'plans', 'subscriptions', 'payments'] as $section) {
+        foreach (['users', 'events', 'stories', 'verification', 'support', 'plans', 'subscriptions', 'payments', 'appeals'] as $section) {
             Route::get('/'.$section, [ManagementController::class, 'index'])->defaults('section', $section)->name($section);
         }
+        Route::patch('/users/{user}/ban', [BanAppealController::class, 'ban'])->name('users.ban');
+        Route::patch('/appeals/{banAppeal}', [BanAppealController::class, 'review'])->name('appeals.review');
         Route::patch('/users/{user}/verification', [ManagementController::class, 'verifyUser'])->name('users.verify');
         Route::patch('/verification/{verificationRequest}', [ManagementController::class, 'review'])->name('verification.review');
         Route::get('/verification/{verificationRequest}/document', [ManagementController::class, 'document'])->name('verification.document');

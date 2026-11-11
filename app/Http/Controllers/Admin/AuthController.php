@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Support\AccountBans;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -32,7 +33,16 @@ class AuthController extends Controller
         if (! Auth::attempt($credentials)) {
             throw ValidationException::withMessages(['login' => 'These credentials do not have access to this portal.']);
         }
+        if ($request->user()->isBanned()) {
+            $details = app(AccountBans::class)->details($request->user());
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('account.banned')->with('ban', $details);
+        }
         $request->session()->regenerate();
+        $request->session()->put('account_ban_version', $request->user()->ban_version);
 
         return redirect()->route($admin ? 'admin.dashboard' : 'billing.index');
     }

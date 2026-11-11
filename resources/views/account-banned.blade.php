@@ -1,0 +1,7 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Account banned · DarEvent</title><link rel="stylesheet" href="{{ asset('admin.css') }}"></head><body class="login-page"><section class="login-card"><a class="login-brand" href="{{ route('account.login') }}">Dar<span>Event</span></a><h1>{{ $ban['status'] === 'permanently_banned' ? 'Account permanently banned' : 'Account banned' }}</h1><p class="body-copy">{{ $ban['reason'] }}</p>
+@if($errors->any())<div class="error" role="alert">{{ $errors->first() }}</div>@endif
+@if($ban['appeal_status'] === 'pending')<div class="notice" role="status">Your review request is pending. Your account remains banned while we review it.</div>@endif
+@if($ban['review_note'])<p class="body-copy">Review decision: {{ $ban['review_note'] }}</p>@endif
+@if($ban['can_request_review'])<p>You can request one review of this ban. A rejected review makes the ban permanent.</p><form method="post" action="{{ route('account.ban-review') }}">@csrf<input type="hidden" name="review_token" value="{{ $ban['review_token'] }}"><label>Why should we review this ban?<textarea name="message" required minlength="10" maxlength="2000">{{ old('message') }}</textarea></label><button class="button wide">Request review</button></form>@elseif($ban['status'] === 'permanently_banned')<p>This review was rejected. Further review requests are unavailable.</p>@endif
+<p><a href="{{ route('account.login') }}">Return to sign in / check review status</a></p></section></body></html>
