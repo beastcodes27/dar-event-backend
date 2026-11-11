@@ -137,4 +137,24 @@ class StoryInteractionsTest extends TestCase
         $this->postJson('/api/users/'.$followersOnly->username.'/messages', ['body' => 'Reply'])->assertForbidden();
         $this->assertDatabaseCount('messages', 1);
     }
+
+    public function test_activity_lists_identify_likes_and_allow_owner_only_likes_filtering(): void
+    {
+        $this->freezeTime();
+        $owner = User::factory()->create();
+        $liker = User::factory()->create();
+        $viewer = User::factory()->create();
+        $story = $this->story($owner);
+        foreach ([$liker, $viewer] as $user) {
+            DB::table('story_views')->insert(['story_id' => $story->id, 'user_id' => $user->id, 'created_at' => now(), 'updated_at' => now()]);
+        }
+        DB::table('story_likes')->insert(['story_id' => $story->id, 'user_id' => $liker->id, 'created_at' => now(), 'updated_at' => now()]);
+        Sanctum::actingAs($owner);
+
+        $this->getJson('/api/stories/'.$story->id.'/views')->assertOk()->assertJsonPath('data.0.liked', true)->assertJsonPath('data.1.liked', false);
+        $this->getJson('/api/stories/'.$story->id.'/views?filter=likes')->assertOk()->assertJsonCount(1, 'data')->assertJsonPath('data.0.user.id', $liker->id)->assertJsonPath('meta.views_count', 2)->assertJsonPath('meta.likes_count', 1);
+        $this->getJson('/api/stories/'.$story->id.'/views?filter=unknown')->assertUnprocessable();
+        Sanctum::actingAs($viewer);
+        $this->getJson('/api/stories/'.$story->id.'/views?filter=likes')->assertNotFound();
+    }
 }

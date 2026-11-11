@@ -97,15 +97,21 @@ class StoryController extends Controller
     public function viewers(Request $request, Story $story): JsonResponse
     {
         abort_unless($request->user()->id === $story->user_id, 404);
-        $viewers = $story->viewers()->whereNotIn('users.id', $request->user()->blockedAccountIds())
-            ->orderByPivot('created_at', 'desc')->orderBy('users.id')->paginate(30);
+        $request->validate(['filter' => ['sometimes', 'in:views,likes']]);
+        $filter = $request->input('filter', 'views');
+        $blocked = $request->user()->blockedAccountIds();
+        $query = $filter === 'likes' ? $story->likes() : $story->viewers();
+        $viewers = $query->whereNotIn('users.id', $blocked)->orderByPivot('created_at', 'desc')->orderBy('users.id')->paginate(30);
+        $likedIds = array_fill_keys($story->likes()->whereIn('users.id', $viewers->getCollection()->modelKeys())->pluck('users.id')->map(fn ($id) => (string) $id)->all(), true);
 
         return response()->json([
             'data' => $viewers->getCollection()->map(fn (User $user) => [
-                'user' => new UserResource($user), 'viewed_at' => $user->pivot->created_at?->toIso8601String(),
+                'user' => new UserResource($user),
+                'viewed_at' => $filter === 'views' ? $user->pivot->created_at?->toIso8601String() : null,
+                'liked' => isset($likedIds[(string) $user->id]),
             ]),
             'links' => ['next' => $viewers->nextPageUrl()],
-            'meta' => ['total' => $viewers->total(), 'likes_count' => $story->likes()->count()],
+            'meta' => ['total' => $viewers->total(), 'views_count' => $story->viewers()->whereNotIn('users.id', $blocked)->count(), 'likes_count' => $story->likes()->count(), 'filter' => $filter],
         ]);
     }
 
