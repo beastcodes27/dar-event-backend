@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Collection;
@@ -59,6 +60,16 @@ class User extends Authenticatable
             'is_admin' => 'boolean',
             'password' => 'hashed',
         ];
+    }
+
+    public function publisherSubscription(): HasOne
+    {
+        return $this->hasOne(PublisherSubscription::class);
+    }
+
+    public function canPublishEvents(): bool
+    {
+        return $this->verified && $this->publisherSubscription()->where('status', 'active')->where('starts_at', '<=', now())->where('ends_at', '>', now())->exists();
     }
 
     public function events(): HasMany

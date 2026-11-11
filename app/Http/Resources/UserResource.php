@@ -31,6 +31,8 @@ class UserResource extends JsonResource
             'avatar' => Media::url($this->avatar_path),
             'initials' => $this->initials(),
             'verified' => $this->verified,
+            'can_publish_events' => $this->when($isMe, fn () => $this->resource->canPublishEvents()),
+            'subscription_url' => $this->when($isMe, fn () => url('/subscriptions')),
             'account_type' => $this->account_type,
             'verified_at' => $this->verified_at?->toIso8601String(),
             'followers_count' => $this->when(isset($this->followers_count), fn () => (int) $this->followers_count),

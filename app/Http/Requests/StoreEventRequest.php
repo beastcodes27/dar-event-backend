@@ -16,7 +16,7 @@ class StoreEventRequest extends FormRequest
 
     protected function failedAuthorization(): void
     {
-        throw new AuthorizationException('Only verified accounts can publish events. Apply for verification from your profile.');
+        throw new AuthorizationException('A verified account and active publisher subscription are required to publish events.');
     }
 
     /**
