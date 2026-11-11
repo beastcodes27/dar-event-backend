@@ -42,6 +42,8 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
+    protected $attributes = ['ban_status' => 'active', 'ban_version' => 0];
+
     /**
      * Get the attributes that should be cast.
      *
@@ -59,7 +61,14 @@ class User extends Authenticatable
             'allow_messages' => 'boolean',
             'is_admin' => 'boolean',
             'password' => 'hashed',
+            'ban_version' => 'integer',
+            'banned_at' => 'datetime',
         ];
+    }
+
+    public function isBanned(): bool
+    {
+        return in_array($this->ban_status, ['banned', 'permanently_banned'], true);
     }
 
     public function publisherSubscription(): HasOne
@@ -69,7 +78,7 @@ class User extends Authenticatable
 
     public function canPublishEvents(): bool
     {
-        return $this->verified && $this->publisherSubscription()->where('status', 'active')->where('starts_at', '<=', now())->where('ends_at', '>', now())->exists();
+        return ! $this->isBanned() && $this->verified && $this->publisherSubscription()->where('status', 'active')->where('starts_at', '<=', now())->where('ends_at', '>', now())->exists();
     }
 
     public function events(): HasMany

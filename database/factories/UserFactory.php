@@ -47,6 +47,11 @@ class UserFactory extends Factory
     /**
      * Indicate that the model's email address should be unverified.
      */
+    public function banned(): static
+    {
+        return $this->state(fn (): array => ['ban_status' => 'banned', 'ban_version' => 1, 'ban_reason' => 'Community rule violations.', 'banned_at' => now()]);
+    }
+
     public function unverified(): static
     {
         return $this->state(fn (array $attributes) => [
