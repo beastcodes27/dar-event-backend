@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    'sonicpesa' => [
+        'url' => env('SONICPESA_API_URL', 'https://api.sonicpesa.com/api/v1'),
+        'key' => env('SONICPESA_API_KEY'),
+        'secret' => env('SONICPESA_API_SECRET'),
+    ],
 ];
