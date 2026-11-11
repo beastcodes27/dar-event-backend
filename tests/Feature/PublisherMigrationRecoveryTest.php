@@ -50,6 +50,22 @@ class PublisherMigrationRecoveryTest extends TestCase
         }
     }
 
+    public function test_mysql_subscription_dates_have_no_implicit_timestamp_defaults(): void
+    {
+        config(['database.default' => 'billing_mysql_preview', 'database.connections.billing_mysql_preview' => [
+            'driver' => 'mysql', 'database' => 'billing_preview', 'host' => '127.0.0.1', 'prefix' => '',
+            'charset' => 'utf8mb4', 'collation' => 'utf8mb4_unicode_ci', 'version' => '5.7.44',
+        ]]);
+        $migration = require database_path('migrations/2026_11_11_175020_create_publisher_plans_table.php');
+
+        $queries = DB::connection()->pretend(fn () => $migration->up());
+
+        $subscriptionSql = collect($queries)->first(fn (array $query): bool => str_starts_with($query['query'], 'create table `publisher_subscriptions`'))['query'];
+        $this->assertStringContainsString('`starts_at` datetime not null', $subscriptionSql);
+        $this->assertStringContainsString('`ends_at` datetime not null', $subscriptionSql);
+        $this->assertStringNotContainsString('on update', $subscriptionSql);
+    }
+
     public function test_rejects_an_incompatible_existing_table_without_changing_it(): void
     {
         Schema::create('publisher_plans', function (Blueprint $table): void {

@@ -38,8 +38,8 @@ return new class extends Migration
                 $table->foreignId('user_id')->unique()->constrained()->cascadeOnDelete();
                 $table->foreignId('publisher_plan_id')->constrained()->restrictOnDelete();
                 $table->string('status')->default('active');
-                $table->timestamp('starts_at');
-                $table->timestamp('ends_at')->index();
+                $table->dateTime('starts_at');
+                $table->dateTime('ends_at')->index();
                 $table->timestamps();
             });
         }
