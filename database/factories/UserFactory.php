@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\PublisherSubscription;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
@@ -56,6 +57,13 @@ class UserFactory extends Factory
     /**
      * Indicate that the user is verified.
      */
+    public function publisher(): static
+    {
+        return $this->verified()->afterCreating(function (User $user): void {
+            PublisherSubscription::factory()->create(['user_id' => $user->id]);
+        });
+    }
+
     public function verified(): static
     {
         return $this->state(fn (array $attributes) => [

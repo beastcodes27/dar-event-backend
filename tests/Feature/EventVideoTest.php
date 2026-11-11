@@ -23,7 +23,7 @@ class EventVideoTest extends TestCase
     {
         Queue::fake();
         Storage::fake('local');
-        $event = Event::factory()->create(['user_id' => User::factory()->verified()->create()->id]);
+        $event = Event::factory()->create(['user_id' => User::factory()->publisher()->create()->id]);
         $file = UploadedFile::fake()->create('clip.mp4', 100, 'video/mp4');
         $this->postJson('/api/events/'.$event->id.'/video', ['video' => $file])->assertUnauthorized();
         Sanctum::actingAs(User::factory()->create());
@@ -40,7 +40,7 @@ class EventVideoTest extends TestCase
     {
         Queue::fake();
         Storage::fake('local');
-        $event = Event::factory()->create(['user_id' => User::factory()->verified()->create()->id]);
+        $event = Event::factory()->create(['user_id' => User::factory()->publisher()->create()->id]);
         Sanctum::actingAs($event->host);
         $this->postJson('/api/events/'.$event->id.'/video', ['video' => UploadedFile::fake()->create('bad.txt', 1, 'text/plain')])->assertUnprocessable();
         $this->postJson('/api/events/'.$event->id.'/video', ['video' => UploadedFile::fake()->create('large.mp4', 102401, 'video/mp4')])->assertUnprocessable();

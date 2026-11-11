@@ -76,7 +76,7 @@ class EventTest extends TestCase
 
     public function test_a_verified_user_can_create_update_and_delete_an_event(): void
     {
-        $user = User::factory()->verified()->create();
+        $user = User::factory()->publisher()->create();
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/events', [
@@ -107,7 +107,7 @@ class EventTest extends TestCase
     public function test_only_the_host_can_update_or_delete_an_event(): void
     {
         $event = Event::factory()->create();
-        $other = User::factory()->verified()->create();
+        $other = User::factory()->publisher()->create();
         Sanctum::actingAs($other);
 
         $this->patchJson('/api/events/'.$event->slug, ['title' => 'Hijacked'])
@@ -123,7 +123,7 @@ class EventTest extends TestCase
         $this->postJson('/api/events', $payload)->assertUnauthorized();
         Sanctum::actingAs($user);
         $this->postJson('/api/events', $payload)->assertForbidden()
-            ->assertJsonPath('message', 'Only verified accounts can publish events. Apply for verification from your profile.');
+            ->assertJsonPath('message', 'A verified account and active publisher subscription are required to publish events.');
         $this->postJson('/api/events', $payload + ['is_public' => false])->assertForbidden();
         $this->patchJson('/api/profile', ['verified' => true, 'verified_at' => now()->toIso8601String()])->assertOk();
         $this->assertFalse($user->fresh()->verified);
@@ -133,7 +133,7 @@ class EventTest extends TestCase
 
     public function test_losing_verification_blocks_edits_video_uploads_and_restores_but_allows_removal(): void
     {
-        $user = User::factory()->verified()->create();
+        $user = User::factory()->publisher()->create();
         $event = Event::factory()->private()->create(['user_id' => $user->id]);
         $user->update(['verified' => false]);
         Sanctum::actingAs($user);

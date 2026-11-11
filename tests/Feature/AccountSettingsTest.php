@@ -38,7 +38,7 @@ class AccountSettingsTest extends TestCase
 
     public function test_archiving_hides_a_post_everywhere_and_only_its_owner_can_restore_it(): void
     {
-        $owner = User::factory()->verified()->create();
+        $owner = User::factory()->publisher()->create();
         $other = User::factory()->create();
         $event = Event::factory()->create(['user_id' => $owner->id, 'title' => 'Archive Example']);
         $other->following()->attach($owner->id);
@@ -64,7 +64,7 @@ class AccountSettingsTest extends TestCase
 
     public function test_archiving_preserves_private_visibility_and_does_not_reuse_slugs(): void
     {
-        $owner = User::factory()->verified()->create();
+        $owner = User::factory()->publisher()->create();
         $event = Event::factory()->private()->create(['user_id' => $owner->id, 'title' => 'Same title', 'slug' => 'same-title']);
         Sanctum::actingAs($owner);
         $this->patchJson('/api/settings/posts/'.$event->id.'/archive', ['archived' => true])->assertOk();
