@@ -1,0 +1,1 @@
+<div class="pagination"><span class="muted">{{ $items->total() }} results · Page {{ $items->currentPage() }} of {{ $items->lastPage() }}</span><div>@if($items->previousPageUrl())<a class="button secondary" href="{{ $items->previousPageUrl() }}">Previous</a>@endif @if($items->nextPageUrl())<a class="button secondary" href="{{ $items->nextPageUrl() }}">Next</a>@endif</div></div>
