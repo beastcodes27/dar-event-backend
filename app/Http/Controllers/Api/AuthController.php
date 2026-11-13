@@ -10,8 +10,10 @@ use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Rules\AvailableRegistrationIdentifier;
 use App\Support\AccountBans;
+use App\Support\PhoneNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -22,11 +24,11 @@ class AuthController extends Controller
     public function availability(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'field' => ['required', 'in:username,email'],
+            'field' => ['required', 'in:username,email,phone'],
             'value' => ['required', 'string', 'max:255'],
         ]);
         $field = $data['field'];
-        $value = Str::lower(trim($data['value']));
+        $value = $field === 'phone' ? PhoneNumber::normalize($data['value']) : Str::lower(trim($data['value']));
         validator([$field => $value], [$field => RegisterRequest::identifierRules($field)])->validate();
 
         return response()->json(['data' => [
@@ -46,10 +48,12 @@ class AuthController extends Controller
                 'privacy_policy_version' => $request->validated('privacy_policy_version'),
             ])->save();
 
-            return $user;
+            return $user->fresh();
         });
 
         $token = $user->createToken($request->input('device_name', 'mobile'))->plainTextToken;
+        Auth::guard('sanctum')->setUser($user);
+        $request->setUserResolver(fn (?string $guard = null) => $user);
 
         return response()->json([
             'message' => 'Account created successfully.',
@@ -68,6 +72,7 @@ class AuthController extends Controller
         $user = User::query()
             ->whereRaw('LOWER(email) = ?', [$identifier])
             ->orWhereRaw('LOWER(username) = ?', [$identifier])
+            ->orWhere('phone', PhoneNumber::normalize($identifier))
             ->first();
 
         if (! $user || ! Hash::check($request->input('password'), $user->password)) {
@@ -88,6 +93,8 @@ class AuthController extends Controller
             return response()->json($result, 403)->header('Cache-Control', 'no-store');
         }
         $token = $result['token'];
+        Auth::guard('sanctum')->setUser($user);
+        $request->setUserResolver(fn (?string $guard = null) => $user);
 
         return response()->json([
             'message' => 'Logged in successfully.',

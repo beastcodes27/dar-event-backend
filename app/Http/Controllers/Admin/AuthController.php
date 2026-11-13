@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Support\AccountBans;
+use App\Support\PhoneNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -26,7 +27,9 @@ class AuthController extends Controller
     {
         $data = $request->validate(['login' => ['required', 'string', 'max:255'], 'password' => ['required', 'string', 'max:255']]);
         $admin = $request->routeIs('admin.*');
-        $credentials = [filter_var($data['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'username' => $data['login'], 'password' => $data['password']];
+        $phone = PhoneNumber::normalize($data['login']);
+        $field = filter_var($data['login'], FILTER_VALIDATE_EMAIL) ? 'email' : (preg_match('/^\\+[1-9][0-9]{7,14}$/D', $phone ?? '') ? 'phone' : 'username');
+        $credentials = [$field => $field === 'phone' ? $phone : $data['login'], 'password' => $data['password']];
         if ($admin) {
             $credentials['is_admin'] = true;
         }

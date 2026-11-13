@@ -21,6 +21,7 @@ use Laravel\Sanctum\HasApiTokens;
     'name',
     'username',
     'email',
+    'phone',
     'password',
     'bio',
     'category',
@@ -64,6 +65,9 @@ class User extends Authenticatable
             'ban_version' => 'integer',
             'banned_at' => 'datetime',
             'unbanned_at' => 'datetime',
+            'onboarding_completed_at' => 'datetime',
+            'onboarding_step' => 'integer',
+            'is_official' => 'boolean',
         ];
     }
 

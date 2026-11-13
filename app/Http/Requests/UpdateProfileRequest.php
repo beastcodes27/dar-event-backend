@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class UpdateProfileRequest extends FormRequest
@@ -14,6 +15,9 @@ class UpdateProfileRequest extends FormRequest
 
     protected function prepareForValidation(): void
     {
+        if (is_string($this->input('username'))) {
+            $this->merge(['username' => Str::lower(trim($this->input('username')))]);
+        }
         $name = $this->input('fullName', $this->input('displayName'));
 
         if (! $this->has('name') && $name !== null) {
@@ -34,9 +38,10 @@ class UpdateProfileRequest extends FormRequest
                 'sometimes', 'required', 'string', 'min:3', 'max:30',
                 'regex:/^[A-Za-z0-9_.]+$/',
                 Rule::unique('users', 'username')->ignore($userId),
+                Rule::notIn($this->user()->is_official ? [] : ['veylo', 'Veylo', 'VEYLO']),
             ],
             'email' => [
-                'sometimes', 'required', 'string', 'email', 'max:255',
+                'sometimes', Rule::requiredIf(! $this->user()->phone), 'nullable', 'string', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($userId),
             ],
             'bio' => ['nullable', 'string', 'max:150'],

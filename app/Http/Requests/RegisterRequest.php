@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Rules\AvailableRegistrationIdentifier;
+use App\Support\PhoneNumber;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -17,8 +18,10 @@ class RegisterRequest extends FormRequest
     protected function prepareForValidation(): void
     {
         $this->merge([
-            'name' => $this->input('name', $this->input('fullName')),
+            'name' => $this->input('name', $this->input('fullName', $this->input('username'))),
             'password_confirmation' => $this->input('password_confirmation', $this->input('confirmPassword')),
+            'category' => $this->input('category', 'Personal'),
+            'phone' => PhoneNumber::normalize(is_string($this->input('phone')) ? $this->input('phone') : null),
             'terms' => $this->input('terms', $this->input('termsAccepted')),
             'username' => is_string($this->input('username')) ? Str::lower(trim($this->input('username'))) : $this->input('username'),
             'email' => is_string($this->input('email')) ? Str::lower(trim($this->input('email'))) : $this->input('email'),
@@ -33,7 +36,8 @@ class RegisterRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:100'],
             'username' => [...self::identifierRules('username'), new AvailableRegistrationIdentifier],
-            'email' => [...self::identifierRules('email'), new AvailableRegistrationIdentifier],
+            'email' => ['bail', 'required_without:phone', 'nullable', 'string', 'email', 'max:255', new AvailableRegistrationIdentifier],
+            'phone' => ['bail', 'required_without:email', 'nullable', 'string', 'regex:/^\\+[1-9][0-9]{7,14}$/D', new AvailableRegistrationIdentifier],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
             'category' => ['required', 'string', Rule::in([
                 'Digital Creator', "NGO's", 'Education', 'Event Organizer', 'Artist', 'Business', 'Personal',
@@ -65,6 +69,10 @@ class RegisterRequest extends FormRequest
     /** @return list<string> */
     public static function identifierRules(string $field): array
     {
+        if ($field === 'phone') {
+            return ['bail', 'required', 'string', 'regex:/^\\+[1-9][0-9]{7,14}$/D'];
+        }
+
         return $field === 'username'
             ? ['bail', 'required', 'string', 'min:3', 'max:30', 'regex:/^[A-Za-z0-9_.]+$/']
             : ['bail', 'required', 'string', 'email', 'max:255'];

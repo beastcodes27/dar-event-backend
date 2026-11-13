@@ -20,7 +20,7 @@ class AuthTest extends TestCase
             'password' => 'secret123',
             'password_confirmation' => 'secret123',
             'category' => 'Event Organizer',
-            'bio' => 'Hello DarEvent',
+            'bio' => 'Hello Veylo',
             'terms' => true,
             'terms_version' => config('legal.terms.version'),
             'privacy_policy_version' => config('legal.privacy.version'),
