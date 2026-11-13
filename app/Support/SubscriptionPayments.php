@@ -16,6 +16,9 @@ class SubscriptionPayments
 
     public function checkout(User $user, PublisherPlan $plan, string $phone): PublisherPayment
     {
+        if (! $user->email) {
+            throw ValidationException::withMessages(['email' => 'Add an email in the app under Settings → Personal information before paying for a publisher plan.']);
+        }
         abort_unless($user->verified && $plan->is_active, 403);
         abort_unless($this->gateway->configured(), 503, 'Online payments are not configured yet.');
         [$payment, $created] = DB::transaction(function () use ($user, $plan, $phone): array {
