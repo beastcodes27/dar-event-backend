@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\FollowController;
 use App\Http\Controllers\Api\LegalController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\PresenceController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RecentSearchController;
@@ -82,6 +83,9 @@ Route::get('stories', [StoryController::class, 'index']);
 */
 
 Route::middleware(['auth:sanctum', EnsureAccountActive::class])->group(function () {
+    Route::get('onboarding/suggestions', [OnboardingController::class, 'suggestions']);
+    Route::patch('onboarding/progress', [OnboardingController::class, 'progress']);
+    Route::post('onboarding/complete', [OnboardingController::class, 'complete'])->middleware('throttle:10,1');
     Route::patch('presence', [PresenceController::class, 'update'])->middleware('throttle:30,1');
     Route::patch('settings/privacy', [SettingsController::class, 'privacy']);
     Route::patch('settings/theme', [SettingsController::class, 'theme']);
