@@ -43,7 +43,7 @@ class User extends Authenticatable
     /** @use HasFactory<UserFactory> */
     use HasApiTokens, HasFactory, Notifiable;
 
-    protected $attributes = ['ban_status' => 'active', 'ban_version' => 0];
+    protected $attributes = ['ban_status' => 'active', 'ban_version' => 0, 'auth_session_version' => 0];
 
     /**
      * Get the attributes that should be cast.
@@ -63,6 +63,7 @@ class User extends Authenticatable
             'is_admin' => 'boolean',
             'password' => 'hashed',
             'ban_version' => 'integer',
+            'auth_session_version' => 'integer',
             'banned_at' => 'datetime',
             'unbanned_at' => 'datetime',
             'onboarding_completed_at' => 'datetime',

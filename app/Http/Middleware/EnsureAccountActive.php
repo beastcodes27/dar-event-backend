@@ -13,7 +13,7 @@ class EnsureAccountActive
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
-        $expired = $user && ! $request->is('api/*') && $request->hasSession() && (int) $request->session()->get('account_ban_version', 0) !== $user->ban_version;
+        $expired = $user && ! $request->is('api/*') && $request->hasSession() && ((int) $request->session()->get('account_ban_version', 0) !== $user->ban_version || (int) $request->session()->get('account_auth_version', 0) !== $user->auth_session_version);
         if (! $user || (! $user->isBanned() && ! $expired)) {
             return $next($request);
         }

@@ -14,7 +14,7 @@ class AccountBans
     public function revokeAccess(User $user): void
     {
         $user->tokens()->delete();
-        $user->forceFill(['remember_token' => Str::random(60)])->save();
+        $user->forceFill(['remember_token' => Str::random(60), 'auth_session_version' => $user->auth_session_version + 1])->save();
         DB::connection(config('session.connection'))->table(config('session.table', 'sessions'))->where('user_id', $user->id)->delete();
     }
 

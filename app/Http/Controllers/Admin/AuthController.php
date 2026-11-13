@@ -46,6 +46,7 @@ class AuthController extends Controller
         }
         $request->session()->regenerate();
         $request->session()->put('account_ban_version', $request->user()->ban_version);
+        $request->session()->put('account_auth_version', $request->user()->auth_session_version);
 
         return redirect()->route($admin ? 'admin.dashboard' : 'billing.index');
     }
