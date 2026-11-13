@@ -1,6 +1,6 @@
-# DarEvent API
+# Veylo API
 
-Laravel backend for the **DarEvent** Expo / React Native app.
+Laravel backend for the **Veylo** Expo / React Native app.
 
 Backend repository: https://github.com/beastcodes27/dar-event-backend
 

@@ -2,8 +2,8 @@
 @section('title', $payment->status==='paid' ? 'Payment confirmed.' : 'Complete your payment')
 @section('content')
 <section class="panel payment-card"><span class="badge {{ $payment->status==='paid' ? 'success' : 'warning' }}">{{ ucfirst($payment->status) }}</span><h2>{{ $payment->plan->name }}</h2><p class="plan-price">{{ number_format((float)$payment->amount,2) }} <small>{{ $payment->currency }}</small></p>
-@if($payment->status==='paid')<p>Your payment is verified and your publisher subscription is active. You can return to DarEvent to publish.</p>
-@elseif($payment->status==='unknown' || $payment->status==='initializing')<p>The payment request could not be confirmed yet. Check your mobile-money account or contact DarEvent support before starting another payment. Do not approve a second payment request.</p>
+@if($payment->status==='paid')<p>Your payment is verified and your publisher subscription is active. You can return to Veylo to publish.</p>
+@elseif($payment->status==='unknown' || $payment->status==='initializing')<p>The payment request could not be confirmed yet. Check your mobile-money account or contact Veylo support before starting another payment. Do not approve a second payment request.</p>
 @elseif($payment->status==='failed')<p>This payment was cancelled or declined. You can return to plans and try again.</p>
 @else<p>Approve the SonicPesa payment prompt on <strong>{{ $payment->phone }}</strong>. Your plan activates only after the payment is verified.</p>@endif
 <p class="muted small">Payment reference: {{ $payment->reference }}</p>

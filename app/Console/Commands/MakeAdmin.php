@@ -7,15 +7,15 @@ use Illuminate\Console\Command;
 
 class MakeAdmin extends Command
 {
-    protected $signature = 'app:make-admin {email : Email of an existing DarEvent account}';
+    protected $signature = 'app:make-admin {email : Email of an existing Veylo account}';
 
-    protected $description = 'Grant an existing account access to the DarEvent web administration portal';
+    protected $description = 'Grant an existing account access to the Veylo web administration portal';
 
     public function handle(): int
     {
         $user = User::where('email', $this->argument('email'))->first();
         if (! $user) {
-            $this->error('Create this account in DarEvent first.');
+            $this->error('Create this account in Veylo first.');
 
             return self::FAILURE;
         }
