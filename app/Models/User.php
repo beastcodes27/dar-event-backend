@@ -63,6 +63,7 @@ class User extends Authenticatable
             'password' => 'hashed',
             'ban_version' => 'integer',
             'banned_at' => 'datetime',
+            'unbanned_at' => 'datetime',
         ];
     }
 

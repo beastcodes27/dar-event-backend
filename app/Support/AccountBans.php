@@ -34,6 +34,25 @@ class AccountBans
         });
     }
 
+    public function unban(User $target, User $administrator, string $reason): void
+    {
+        DB::transaction(function () use ($target, $administrator, $reason): void {
+            $users = User::whereIn('id', [$target->id, $administrator->id])->orderBy('id')->lockForUpdate()->get()->keyBy('id');
+            $admin = $users[$administrator->id];
+            $user = $users[$target->id];
+            abort_unless($admin->is_admin && ! $admin->isBanned(), 403);
+            abort_unless($user->isBanned(), 409, 'This account is already active.');
+            BanAppeal::where('user_id', $user->id)->where('ban_version', $user->ban_version)->where('status', 'pending')->update([
+                'status' => 'accepted', 'reviewed_by' => $admin->id, 'reviewed_at' => now(), 'decision_reason' => $reason,
+            ]);
+            $user->forceFill([
+                'ban_status' => 'active', 'ban_reason' => null, 'banned_at' => null, 'banned_by' => null,
+                'ban_version' => $user->ban_version + 1, 'unbanned_at' => now(), 'unbanned_by' => $admin->id, 'unban_reason' => $reason,
+            ])->save();
+            $this->revokeAccess($user);
+        });
+    }
+
     public function details(User $user): array
     {
         $appeal = BanAppeal::where('user_id', $user->id)->where('ban_version', $user->ban_version)->first();
