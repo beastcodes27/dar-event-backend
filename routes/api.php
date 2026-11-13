@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\LegalController;
 use App\Http\Controllers\Api\MessageController;
 use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\OnboardingController;
+use App\Http\Controllers\Api\PasswordRecoveryController;
 use App\Http\Controllers\Api\PresenceController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RecentSearchController;
@@ -35,6 +36,10 @@ use Illuminate\Support\Facades\Route;
 */
 
 Route::prefix('auth')->group(function () {
+    Route::post('recovery/find', [PasswordRecoveryController::class, 'find'])->middleware('throttle:5,1,recovery-find');
+    Route::post('recovery/send', [PasswordRecoveryController::class, 'send'])->middleware('throttle:3,1,recovery-send');
+    Route::post('recovery/verify', [PasswordRecoveryController::class, 'verify'])->middleware('throttle:10,1,recovery-verify');
+    Route::post('recovery/reset', [PasswordRecoveryController::class, 'reset'])->middleware('throttle:5,1,recovery-reset');
     Route::post('availability', [AuthController::class, 'availability'])->middleware('throttle:60,1,registration-availability');
     Route::post('register', [AuthController::class, 'register']);
     Route::post('ban-review', [BanAppealController::class, 'store'])->middleware('throttle:5,1');
