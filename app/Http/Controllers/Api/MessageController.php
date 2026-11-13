@@ -16,6 +16,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class MessageController extends Controller
 {
@@ -42,6 +44,7 @@ class MessageController extends Controller
                     ->orWhereIn('id', Message::query()->visibleTo($request->user())->select('recipient_id')->where('sender_id', $authId));
             })
             ->selectSub((clone $latest)->select('body'), 'last_message')
+            ->selectSub((clone $latest)->select('attachment_type'), 'last_message_attachment_type')
             ->selectSub((clone $latest)->select('created_at'), 'last_message_at')
             ->selectSub((clone $latest)->select('id'), 'last_message_id')
             ->selectSub((clone $latest)->select('sender_id'), 'last_message_sender_id')
@@ -109,31 +112,64 @@ class MessageController extends Controller
 
     public function store(StoreMessageRequest $request, User $user): JsonResponse
     {
-        $message = DB::transaction(function () use ($request, $user): Message {
-            $recipient = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
-            abort_if(MessageRequest::where('sender_id', $user->id)->where('recipient_id', $request->user()->id)->where('status', 'pending')->exists(), 409, 'Accept the message request before replying.');
-            abort_if(MessageRequest::where('sender_id', $user->id)->where('recipient_id', $request->user()->id)->where('status', 'declined')->exists(), 409, 'This message request is closed.');
-            $permission = $recipient->messagePermissionFor($request->user());
-            abort_unless(in_array($permission, ['allowed', 'request_required'], true), 403, 'Messaging is unavailable for this account.');
-            if ($permission === 'request_required') {
-                $pending = MessageRequest::firstOrCreate(['sender_id' => $request->user()->id, 'recipient_id' => $user->id], ['status' => 'pending']);
-                abort_unless($pending->wasRecentlyCreated, 409, 'A message request already exists.');
-            }
+        $attachmentPath = null;
+        try {
+            $message = DB::transaction(function () use ($request, $user, &$attachmentPath): Message {
+                $recipient = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+                abort_if(MessageRequest::where('sender_id', $user->id)->where('recipient_id', $request->user()->id)->where('status', 'pending')->exists(), 409, 'Accept the message request before replying.');
+                abort_if(MessageRequest::where('sender_id', $user->id)->where('recipient_id', $request->user()->id)->where('status', 'declined')->exists(), 409, 'This message request is closed.');
+                $permission = $recipient->messagePermissionFor($request->user());
+                abort_unless(in_array($permission, ['allowed', 'request_required'], true), 403, 'Messaging is unavailable for this account.');
+                if ($permission === 'request_required') {
+                    $pending = MessageRequest::firstOrCreate(['sender_id' => $request->user()->id, 'recipient_id' => $user->id], ['status' => 'pending']);
+                    abort_unless($pending->wasRecentlyCreated, 409, 'A message request already exists.');
+                }
 
-            if ($request->validated('reply_to_id')) {
-                $parent = Message::query()->visibleTo($request->user())->whereKey($request->validated('reply_to_id'))->whereNull('deleted_for_everyone_at')->lockForUpdate()->first();
-                abort_unless($parent, 422, 'The message you are replying to is no longer available.');
-            }
+                if ($request->validated('reply_to_id')) {
+                    $parent = Message::query()->visibleTo($request->user())->whereKey($request->validated('reply_to_id'))->whereNull('deleted_for_everyone_at')->lockForUpdate()->first();
+                    abort_unless($parent, 422, 'The message you are replying to is no longer available.');
+                }
 
-            return Message::create([
-                'sender_id' => $request->user()->getKey(),
-                'recipient_id' => $user->getKey(),
-                'body' => $request->validated('body'),
-                'reply_to_id' => $request->validated('reply_to_id'),
-            ]);
-        });
+                $file = $request->file('attachment');
+                if ($file) {
+                    $attachmentPath = $file->store('messages', 'local');
+                    abort_unless($attachmentPath, 503, 'Could not save this attachment. Please try again.');
+                }
+
+                return Message::create([
+                    'sender_id' => $request->user()->getKey(),
+                    'recipient_id' => $user->getKey(),
+                    'body' => $request->validated('body') ?? '',
+                    'attachment_type' => $file ? $request->validated('attachment_type') : null,
+                    'attachment_path' => $attachmentPath,
+                    'attachment_mime' => $file?->getMimeType(),
+                    'attachment_size' => $file?->getSize(),
+                    'attachment_duration_ms' => $file && $request->validated('attachment_type') === 'audio' ? $request->validated('duration_ms') : null,
+                    'reply_to_id' => $request->validated('reply_to_id'),
+                ]);
+            });
+        } catch (\Throwable $exception) {
+            if ($attachmentPath) {
+                Storage::disk('local')->delete($attachmentPath);
+            }
+            throw $exception;
+        }
 
         return response()->json(['data' => new MessageResource($message->load('replyTo')), 'meta' => ['message_permission' => $user->messagePermissionFor($request->user())]], 201);
+    }
+
+    public function attachment(Request $request, Message $message): BinaryFileResponse
+    {
+        abort_unless(in_array($request->user()->id, [$message->sender_id, $message->recipient_id], true), 404);
+        abort_if($message->isDeletedFor($request->user()) || $message->deleted_for_everyone_at || ! $message->attachment_path, 404);
+        $peer = $request->user()->id === $message->sender_id ? $message->recipient : $message->sender;
+        abort_if($request->user()->hasBlockWith($peer), 403, 'This conversation is unavailable.');
+        $disk = Storage::disk('local');
+        abort_unless($disk->exists($message->attachment_path), 404);
+
+        return response()->file($disk->path($message->attachment_path), [
+            'Content-Type' => $message->attachment_mime, 'Cache-Control' => 'private, no-store', 'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function resolveRequest(Request $request, MessageRequest $messageRequest): JsonResponse
@@ -173,9 +209,17 @@ class MessageController extends Controller
         $data = $request->validate(['scope' => ['required', 'in:me,everyone']]);
         if ($data['scope'] === 'everyone') {
             abort_unless($message->sender_id === $userId, 403, 'Only the sender can delete a message for everyone.');
-            Message::whereKey($message->id)->whereNull('deleted_for_everyone_at')->update([
-                'body' => '', 'edited_at' => null, 'deleted_for_everyone_at' => now(),
-            ]);
+            $path = DB::transaction(function () use ($message): ?string {
+                $current = Message::whereKey($message->id)->lockForUpdate()->firstOrFail();
+                $path = $current->attachment_path;
+                $current->forceFill(['body' => '', 'edited_at' => null, 'deleted_for_everyone_at' => $current->deleted_for_everyone_at ?? now(),
+                    'attachment_type' => null, 'attachment_path' => null, 'attachment_mime' => null, 'attachment_size' => null, 'attachment_duration_ms' => null])->save();
+
+                return $path;
+            });
+            if ($path) {
+                Storage::disk('local')->delete($path);
+            }
 
             return response()->json(['data' => new MessageResource($message->fresh())]);
         }

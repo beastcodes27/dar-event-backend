@@ -25,7 +25,10 @@ class StoreMessageRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'body' => ['required', 'string', 'max:2000'],
+            'body' => ['required_without:attachment', 'nullable', 'string', 'max:2000'],
+            'attachment_type' => ['required_with:attachment', 'nullable', 'in:image,audio'],
+            'attachment' => array_merge(['required_with:attachment_type', 'nullable', 'file', 'max:10240'], $this->input('attachment_type') === 'image' ? ['image', 'mimes:jpg,jpeg,png,webp'] : ['mimetypes:audio/mp4,audio/x-m4a,audio/mpeg,audio/aac,audio/webm,video/webm,audio/ogg,audio/wav,audio/x-wav']),
+            'duration_ms' => ['required_if:attachment_type,audio', 'nullable', 'integer', 'min:1', 'max:120000'],
             'reply_to_id' => ['nullable', 'integer', Rule::exists('messages', 'id')->where(function (Builder $query): void {
                 $senderId = $this->user()->id;
                 $recipientId = $this->route('user')->id;

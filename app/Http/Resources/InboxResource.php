@@ -14,7 +14,7 @@ class InboxResource extends JsonResource
     {
         return [
             'user' => new UserResource($this->resource),
-            'last_message' => $this->last_message_deleted_at ? 'Message deleted' : $this->last_message,
+            'last_message' => $this->last_message_deleted_at ? 'Message deleted' : ($this->last_message ?: ($this->last_message_attachment_type === 'audio' ? 'Voice note' : ($this->last_message_attachment_type === 'image' ? 'Photo' : ''))),
             'last_message_is_mine' => (int) $this->last_message_sender_id === $request->user()->id,
             'last_message_read_at' => $this->last_message_read_at ? Carbon::parse($this->last_message_read_at)->toIso8601String() : null,
             'last_message_deleted' => $this->last_message_deleted_at !== null,

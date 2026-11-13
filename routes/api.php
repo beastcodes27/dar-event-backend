@@ -98,6 +98,7 @@ Route::middleware(['auth:sanctum', EnsureAccountActive::class])->group(function 
     Route::patch('admin/support/{supportId}', [SettingsController::class, 'reply'])->whereNumber('supportId');
     Route::get('messages', [MessageController::class, 'index']);
     Route::get('messages/unread-count', [MessageController::class, 'unreadCount']);
+    Route::get('messages/{message}/attachment', [MessageController::class, 'attachment'])->name('messages.attachment');
     Route::patch('messages/{message}', [MessageController::class, 'update'])->middleware('throttle:60,1');
     Route::delete('messages/{message}', [MessageController::class, 'destroy'])->middleware('throttle:60,1');
     Route::patch('message-requests/{messageRequest}', [MessageController::class, 'resolveRequest']);
