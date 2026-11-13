@@ -40,4 +40,10 @@ return [
         'key' => env('SONICPESA_API_KEY'),
         'secret' => env('SONICPESA_API_SECRET'),
     ],
+    'textify' => [
+        'url' => env('TEXTIFY_API_URL', 'https://portal.textify.africa/api/v1'),
+        'key' => env('TEXTIFY_API_KEY'),
+        'sender_name' => env('TEXTIFY_SENDER_NAME'),
+    ],
+
 ];
