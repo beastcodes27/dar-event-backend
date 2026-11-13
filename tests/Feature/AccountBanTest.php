@@ -193,4 +193,52 @@ class AccountBanTest extends TestCase
         $this->assertAuthenticatedAs($user, 'web');
         $this->get('/subscriptions')->assertOk();
     }
+
+    public function test_admin_unbans_an_account_resolves_pending_reviews_and_keeps_old_tokens_revoked(): void
+    {
+        $this->freezeTime();
+        $admin = $this->admin();
+        $user = User::factory()->banned()->create();
+        $oldToken = $user->createToken('revoked-phone')->plainTextToken;
+        $reviewToken = $this->reviewToken($user);
+        $appeal = app(AccountBans::class)->submit($reviewToken, 'Please review my account ban.');
+        $this->actingAs($admin, 'web');
+
+        $this->patch('/admin/users/'.$user->id.'/unban', ['reason' => 'Restriction was issued in error.'])->assertRedirect();
+
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'ban_status' => 'active', 'ban_version' => 2, 'unbanned_by' => $admin->id, 'unbanned_at' => now(), 'unban_reason' => 'Restriction was issued in error.']);
+        $this->assertDatabaseHas('ban_appeals', ['id' => $appeal->id, 'status' => 'accepted', 'reviewed_by' => $admin->id]);
+        $this->assertDatabaseMissing('personal_access_tokens', ['tokenable_id' => $user->id]);
+        Auth::forgetGuards();
+        $this->withToken($oldToken)->getJson('/api/profile')->assertUnauthorized();
+        $this->postJson('/api/auth/ban-review', ['review_token' => $reviewToken, 'message' => 'Another review request.'])->assertForbidden();
+        $this->postJson('/api/auth/login', ['login' => $user->email, 'password' => 'password'])->assertOk()->assertJsonStructure(['token']);
+    }
+
+    public function test_admin_can_restore_a_permanent_ban_without_erasing_the_rejected_review(): void
+    {
+        $admin = $this->admin();
+        $user = User::factory()->banned()->create();
+        $appeal = app(AccountBans::class)->submit($this->reviewToken($user), 'Please review this ban.');
+        app(AccountBans::class)->review($appeal, $admin, 'rejected', 'Violations confirmed.');
+        $this->actingAs($admin, 'web');
+        $this->get('/admin/users')->assertSee('Unban account');
+
+        $this->patch('/admin/users/'.$user->id.'/unban', ['reason' => 'Administrator reconsidered the restriction.'])->assertRedirect();
+
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'ban_status' => 'active', 'unbanned_by' => $admin->id]);
+        $this->assertDatabaseHas('ban_appeals', ['id' => $appeal->id, 'status' => 'rejected', 'decision_reason' => 'Violations confirmed.']);
+    }
+
+    public function test_unbanning_requires_an_admin_and_a_reason_and_refuses_active_accounts(): void
+    {
+        $user = User::factory()->banned()->create();
+        $active = User::factory()->create();
+        $this->patch('/admin/users/'.$user->id.'/unban', ['reason' => 'Restore account.'])->assertRedirect('/admin/login');
+        $this->actingAs($active, 'web')->patch('/admin/users/'.$user->id.'/unban', ['reason' => 'Restore account.'])->assertForbidden();
+        $this->actingAs($this->admin(), 'web');
+        $this->patch('/admin/users/'.$user->id.'/unban', [])->assertSessionHasErrors('reason');
+        $this->patch('/admin/users/'.$active->id.'/unban', ['reason' => 'Restore account.'])->assertConflict();
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'ban_status' => 'banned', 'unbanned_at' => null]);
+    }
 }

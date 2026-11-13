@@ -46,6 +46,14 @@ class BanAppealController extends Controller
         return back()->with('status', 'Account banned. All login sessions have been revoked.');
     }
 
+    public function unban(Request $request, User $user, AccountBans $bans): RedirectResponse
+    {
+        $data = $request->validate(['reason' => ['required', 'string', 'min:3', 'max:2000']]);
+        $bans->unban($user, $request->user(), $data['reason']);
+
+        return back()->with('status', 'Account unbanned. The user can sign in again. Previous sessions remain revoked.');
+    }
+
     public function review(Request $request, BanAppeal $banAppeal, AccountBans $bans): RedirectResponse
     {
         $data = $request->validate(['status' => ['required', 'in:accepted,rejected'], 'decision_reason' => ['required', 'string', 'min:3', 'max:2000']]);

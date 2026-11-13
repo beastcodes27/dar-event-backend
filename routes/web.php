@@ -27,6 +27,7 @@ Route::middleware('auth')->group(function (): void {
         foreach (['users', 'events', 'stories', 'verification', 'support', 'plans', 'subscriptions', 'payments', 'appeals'] as $section) {
             Route::get('/'.$section, [ManagementController::class, 'index'])->defaults('section', $section)->name($section);
         }
+        Route::patch('/users/{user}/unban', [BanAppealController::class, 'unban'])->name('users.unban');
         Route::patch('/users/{user}/ban', [BanAppealController::class, 'ban'])->name('users.ban');
         Route::patch('/appeals/{banAppeal}', [BanAppealController::class, 'review'])->name('appeals.review');
         Route::patch('/users/{user}/verification', [ManagementController::class, 'verifyUser'])->name('users.verify');
