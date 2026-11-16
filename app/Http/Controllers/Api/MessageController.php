@@ -10,6 +10,8 @@ use App\Http\Resources\MessageResource;
 use App\Models\Message;
 use App\Models\MessageRequest;
 use App\Models\User;
+use App\Notifications\AppNotification;
+use App\Support\Media;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -154,6 +156,22 @@ class MessageController extends Controller
             }
             throw $exception;
         }
+
+        $sender = $request->user();
+        $user->notify(new AppNotification('message', [
+            'message' => "{$sender->username} sent you a message.",
+            'actor' => [
+                'id' => $sender->id,
+                'name' => $sender->name,
+                'username' => $sender->username,
+                'avatar' => Media::url($sender->avatar_path),
+            ],
+            'conversation' => [
+                'username' => $sender->username,
+                'name' => $sender->name,
+                'avatar' => Media::url($sender->avatar_path),
+            ],
+        ]));
 
         return response()->json(['data' => new MessageResource($message->load('replyTo')), 'meta' => ['message_permission' => $user->messagePermissionFor($request->user())]], 201);
     }

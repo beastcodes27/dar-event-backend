@@ -8,6 +8,7 @@ use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\UpdatePasswordRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Notifications\AppNotification;
 use App\Rules\AvailableRegistrationIdentifier;
 use App\Support\AccountBans;
 use App\Support\PhoneNumber;
@@ -95,6 +96,12 @@ class AuthController extends Controller
         $token = $result['token'];
         Auth::guard('sanctum')->setUser($user);
         $request->setUserResolver(fn (?string $guard = null) => $user);
+
+        $device = $request->input('device_name');
+        $user->notify(new AppNotification('login', [
+            'message' => 'New login to your Veylo account'.($device ? " from {$device}" : '').'.',
+            'device_name' => $device,
+        ]));
 
         return response()->json([
             'message' => 'Logged in successfully.',

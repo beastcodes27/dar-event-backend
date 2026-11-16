@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\PasswordRecoveryController;
 use App\Http\Controllers\Api\PresenceController;
 use App\Http\Controllers\Api\ProfileController;
+use App\Http\Controllers\Api\PushTokenController;
 use App\Http\Controllers\Api\RecentSearchController;
 use App\Http\Controllers\Api\SavedEventController;
 use App\Http\Controllers\Api\SearchController;
@@ -147,6 +148,8 @@ Route::middleware(['auth:sanctum', EnsureAccountActive::class])->group(function 
 
     Route::post('users/{user:username}/follow', [FollowController::class, 'toggle']);
 
+    Route::post('push-tokens', [PushTokenController::class, 'store']);
+    Route::delete('push-tokens', [PushTokenController::class, 'destroy']);
     Route::get('notifications', [NotificationController::class, 'index']);
     Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount']);
     Route::post('notifications/read-all', [NotificationController::class, 'markAllAsRead']);

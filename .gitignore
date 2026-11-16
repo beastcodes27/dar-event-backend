@@ -31,3 +31,6 @@ Thumbs.db
 /storage/app/public/verifications
 /storage/app/public/stories
 /storage/app/public/highlights
+
+# Firebase server credentials
+*firebase-adminsdk*.json

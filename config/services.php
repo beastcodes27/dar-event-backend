@@ -45,5 +45,11 @@ return [
         'key' => env('TEXTIFY_API_KEY'),
         'sender_name' => env('TEXTIFY_SENDER_NAME'),
     ],
+    'firebase' => [
+        'credentials' => env('FIREBASE_CREDENTIALS'),
+    ],
+    'expo' => [
+        'access_token' => env('EXPO_ACCESS_TOKEN'),
+    ],
 
 ];
