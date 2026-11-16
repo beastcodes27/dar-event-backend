@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ContentReport;
 use App\Models\Event;
 use App\Models\PublisherPayment;
 use App\Models\PublisherSubscription;
@@ -19,6 +20,7 @@ class DashboardController extends Controller
     {
         return view('admin.dashboard', [
             'stats' => [
+                'Pending content reports' => ContentReport::where('status', 'pending')->count(),
                 'Users' => User::count(), 'Published events' => Event::withoutGlobalScopes()->whereNull('archived_at')->count(),
                 'Active stories' => Story::active()->count(), 'Verification queue' => VerificationRequest::where('status', 'pending')->count(),
                 'Active subscriptions' => PublisherSubscription::where('status', 'active')->where('ends_at', '>', now())->count(),

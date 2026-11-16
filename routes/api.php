@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\CommentLikeController;
+use App\Http\Controllers\Api\ContentReportController;
 use App\Http\Controllers\Api\EventController;
 use App\Http\Controllers\Api\EventLikeController;
 use App\Http\Controllers\Api\EventShareController;
@@ -138,6 +139,8 @@ Route::middleware(['auth:sanctum', EnsureAccountActive::class])->group(function 
     Route::post('events/{event}/save', [SavedEventController::class, 'toggle']);
     Route::get('saved-events', [SavedEventController::class, 'index']);
 
+    Route::post('events/{event}/report', [ContentReportController::class, 'event'])->middleware('throttle:10,1,content-reports');
+    Route::post('comments/{comment}/report', [ContentReportController::class, 'comment'])->middleware('throttle:10,1,content-reports');
     Route::post('events/{event}/comments', [CommentController::class, 'store']);
     Route::delete('comments/{comment}', [CommentController::class, 'destroy']);
     Route::post('comments/{comment}/like', [CommentLikeController::class, 'toggle']);

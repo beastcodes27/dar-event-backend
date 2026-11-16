@@ -1,8 +1,10 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\ContentReportController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ManagementController;
+use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\BanAppealController;
 use App\Http\Controllers\BillingController;
 use App\Http\Middleware\EnsureAdmin;
@@ -24,6 +26,12 @@ Route::middleware('auth')->group(function (): void {
     Route::post('/subscriptions/payments/{publisherPayment}/check', [BillingController::class, 'check'])->middleware('throttle:20,1')->name('billing.check');
     Route::prefix('admin')->name('admin.')->middleware(EnsureAdmin::class)->group(function (): void {
         Route::get('/', DashboardController::class)->name('dashboard');
+        Route::get('/reports', [ContentReportController::class, 'index'])->name('reports');
+        Route::patch('/reports/{contentReport}', [ContentReportController::class, 'review'])->name('reports.review');
+        Route::get('/profile', [ProfileController::class, 'edit'])->name('profile');
+        Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+        Route::post('/profile/avatar', [ProfileController::class, 'avatar'])->name('profile.avatar');
+        Route::patch('/profile/password', [ProfileController::class, 'password'])->middleware('throttle:5,1,admin-password')->name('profile.password');
         foreach (['users', 'events', 'stories', 'verification', 'support', 'plans', 'subscriptions', 'payments', 'appeals'] as $section) {
             Route::get('/'.$section, [ManagementController::class, 'index'])->defaults('section', $section)->name($section);
         }
