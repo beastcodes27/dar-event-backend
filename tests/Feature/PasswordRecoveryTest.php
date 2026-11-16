@@ -10,16 +10,23 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class PasswordRecoveryTest extends TestCase
 {
     use RefreshDatabase;
 
+    private string $newPassword;
+
+    private string $textifyKey;
+
     protected function setUp(): void
     {
         parent::setUp();
-        config(['mail.default' => 'smtp', 'services.textify.key' => 'test-key', 'services.textify.sender_name' => 'Veylo']);
+        $this->newPassword = Str::random(32);
+        $this->textifyKey = Str::random(32);
+        config(['mail.default' => 'smtp', 'services.textify.key' => $this->textifyKey, 'services.textify.sender_name' => 'Veylo']);
         Notification::fake();
         Http::preventStrayRequests();
     }
@@ -45,12 +52,13 @@ class PasswordRecoveryTest extends TestCase
 
     private function resetBody(string $token, string $reset): array
     {
-        return ['recovery_token' => $token, 'reset_token' => $reset, 'password' => 'new-secret123', 'password_confirmation' => 'new-secret123'];
+        return ['recovery_token' => $token, 'reset_token' => $reset, 'password' => $this->newPassword, 'password_confirmation' => $this->newPassword];
     }
 
     public function test_email_recovery_requires_a_code_and_revokes_existing_sessions(): void
     {
-        $user = User::factory()->create(['password' => 'old-secret', 'remember_token' => 'old-remember']);
+        $rememberToken = Str::random(60);
+        $user = User::factory()->create(['password' => Str::random(32), 'remember_token' => $rememberToken]);
         $user->createToken('phone');
         $user->createToken('tablet');
         $token = $this->findAccount($user);
@@ -61,12 +69,12 @@ class PasswordRecoveryTest extends TestCase
         $this->assertNotEquals($token, $challenge->token_hash);
         $reset = $this->verifyCode($token, $code);
         $this->postJson('/api/auth/recovery/reset', $this->resetBody($token, $reset))->assertOk()->assertJsonMissingPath('token');
-        $this->assertTrue(Hash::check('new-secret123', $user->fresh()->password));
+        $this->assertTrue(Hash::check($this->newPassword, $user->fresh()->password));
         $this->assertEquals(1, $user->fresh()->auth_session_version);
-        $this->assertNotEquals('old-remember', $user->fresh()->remember_token);
+        $this->assertNotEquals($rememberToken, $user->fresh()->remember_token);
         $this->assertDatabaseCount('personal_access_tokens', 0);
         $this->postJson('/api/auth/recovery/reset', $this->resetBody($token, $reset))->assertUnprocessable();
-        $this->postJson('/api/auth/login', ['login' => $user->email, 'password' => 'new-secret123'])->assertOk();
+        $this->postJson('/api/auth/login', ['login' => $user->email, 'password' => $this->newPassword])->assertOk();
     }
 
     public function test_phone_recovery_uses_textify_with_international_receiver_and_no_public_code(): void
@@ -80,7 +88,7 @@ class PasswordRecoveryTest extends TestCase
             preg_match('/code is ([0-9]{6})/', $request['messages'][0]['content'], $match);
             $code = $match[1] ?? null;
 
-            return $request->hasHeader('Authorization', 'Bearer test-key') && $request['messages'][0]['receiver'] === '255712345678' && $request['channel'] === 'sms' && $request['sender_name'] === 'Veylo' && $code !== null;
+            return $request->hasHeader('Authorization', 'Bearer '.$this->textifyKey) && $request['messages'][0]['receiver'] === '255712345678' && $request['channel'] === 'sms' && $request['sender_name'] === 'Veylo' && $code !== null;
         });
         $reset = $this->verifyCode($token, $code);
         $this->postJson('/api/auth/recovery/reset', $this->resetBody($token, $reset))->assertOk();
@@ -155,7 +163,7 @@ class PasswordRecoveryTest extends TestCase
         config(['services.textify.key' => null]);
         $this->postJson('/api/auth/recovery/send', ['recovery_token' => $token, 'channel' => 'sms'])->assertStatus(503);
         Http::assertNothingSent();
-        config(['services.textify.key' => 'test-key']);
+        config(['services.textify.key' => $this->textifyKey]);
         Http::fake(['*' => Http::response(['success' => false, 'message' => 'private-provider-detail'], 401)]);
         $this->postJson('/api/auth/recovery/send', ['recovery_token' => $token, 'channel' => 'sms'])->assertStatus(503)->assertDontSee('private-provider-detail');
         $this->assertNotNull(AccountRecovery::first()->consumed_at);
@@ -173,7 +181,7 @@ class PasswordRecoveryTest extends TestCase
         $reset = $this->verifyCode($token, $code);
         $this->postJson('/api/auth/recovery/reset', $this->resetBody($token, $reset))->assertOk();
         $this->assertEquals('permanently_banned', $user->fresh()->ban_status);
-        $this->postJson('/api/auth/login', ['login' => $user->email, 'password' => 'new-secret123'])->assertForbidden()->assertJsonPath('code', 'account_banned');
+        $this->postJson('/api/auth/login', ['login' => $user->email, 'password' => $this->newPassword])->assertForbidden()->assertJsonPath('code', 'account_banned');
     }
 
     public function test_old_browser_sessions_cannot_access_the_portal_after_a_reset(): void
