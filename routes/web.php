@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\ManagementController;
 use App\Http\Controllers\Admin\ProfileController;
 use App\Http\Controllers\BanAppealController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\PublicProfileController;
 use App\Http\Middleware\EnsureAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -52,3 +53,4 @@ Route::middleware('auth')->group(function (): void {
 });
 
 Route::get('/policies/{document}', fn (string $document) => view('legal', ['policy' => config('legal.'.$document)]))->whereIn('document', ['terms', 'privacy'])->name('policy');
+Route::get('/u/{user:username}', PublicProfileController::class)->name('profile.public');
